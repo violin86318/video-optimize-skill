@@ -258,8 +258,8 @@ def compress_video(video_path: str, output_path: str = None, target_mb: float = 
         print("[压缩] base64 仍超限，执行二次压缩...")
         second_target_mb = target_mb * 0.6  # 更激进
         target_video_bitrate = int((second_target_mb * 8 * 1024) / duration - 96)
-        if target_video_bitrate < 150:
-            target_video_bitrate = 150
+        if target_video_bitrate < 100:
+            target_video_bitrate = 100
 
         second_output = output_path + ".2nd.mp4"
         cmd2 = [
@@ -268,7 +268,7 @@ def compress_video(video_path: str, output_path: str = None, target_mb: float = 
             "-b:v", f"{target_video_bitrate}k",
             "-maxrate", f"{int(target_video_bitrate * 1.2)}k",
             "-bufsize", f"{int(target_video_bitrate * 1.5)}k",
-            "-c:a", "aac", "-b:a", "96k",
+            "-c:a", "aac", "-b:a", "64k",
             "-vf", f"scale=-2:{min(height, 480)}",
             "-movflags", "+faststart",
             second_output
