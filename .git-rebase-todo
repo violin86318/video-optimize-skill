@@ -1,0 +1,4 @@
+edit 3609ec6 Initial commit ✨
+pick f6dd65a Add .gitignore and remove pycache
+pick 298eb2b security: move API credentials to environment variables
+pick 45a4535 cleanup

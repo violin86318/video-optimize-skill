@@ -27,10 +27,11 @@ from datetime import datetime
 from pathlib import Path
 
 # ─────────────────── API Configuration ───────────────────
-# 从环境变量读取，可通过 export DOUBAO_API_KEY 设置
-API_ENDPOINT = os.environ.get("DOUBAO_API_ENDPOINT", "https://ark.cn-beijing.volces.com/api/v3/responses")
-API_MODEL = os.environ.get("DOUBAO_MODEL", "doubao-seed-2-0-pro-260215")
-API_KEY = os.environ.get("DOUBAO_API_KEY", "")
+# 此处设置默认值，将通过配置管理器动态加载或从配置/环境变量覆盖
+API_ENDPOINT = "https://ark.cn-beijing.volces.com/api/v3/responses"
+API_MODEL = "doubao-seed-2-0-pro-260215"
+API_KEY = ""
+DEFAULT_ARCHIVE_DIR = "./outputs/reports"
 
 # ─────────────────── Constants ───────────────────
 TARGET_SIZE_MB = 35          # 压缩目标（base64 后 ≈47MB < 50MB API 限制）
@@ -41,6 +42,81 @@ SCREENSHOT_INTERVAL = 20     # 截图间隔（秒）
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 SKILL_DIR = SCRIPT_DIR.parent
+
+
+# ═══════════════════════════════════════════════════════════
+# 0. 配置管理
+# ═══════════════════════════════════════════════════════════
+
+CONFIG_FILE = os.path.expanduser("~/.video_optimize_config.json")
+
+def load_config():
+    global API_KEY, API_MODEL, API_ENDPOINT, DEFAULT_ARCHIVE_DIR
+    config = {}
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                config = json.load(f)
+        except Exception as e:
+            print(f"[配置] 读取配置失败: {e}")
+
+    # 环境变量优先级最高，其次是配置文件，最后是代码默认值
+    API_KEY = os.environ.get("DOUBAO_API_KEY", config.get("API_KEY", ""))
+    API_MODEL = os.environ.get("DOUBAO_MODEL", config.get("MODEL", "doubao-seed-2-0-pro-260215"))
+    API_ENDPOINT = os.environ.get("DOUBAO_API_ENDPOINT", config.get("ENDPOINT", "https://ark.cn-beijing.volces.com/api/v3/responses"))
+    DEFAULT_ARCHIVE_DIR = config.get("DEFAULT_ARCHIVE_DIR", "./outputs/reports")
+
+def save_config(api_key, model, endpoint, archive_dir):
+    config = {
+        "API_KEY": api_key,
+        "MODEL": model,
+        "ENDPOINT": endpoint,
+        "DEFAULT_ARCHIVE_DIR": archive_dir
+    }
+    try:
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(config, f, indent=2, ensure_ascii=False)
+        print(f"[配置] 已保存至: {CONFIG_FILE}")
+    except Exception as e:
+        print(f"[配置] 保存配置失败: {e}")
+
+def interactive_setup():
+    print("\n" + "═"*60)
+    print(" 🛠️  视频分析技能 (video-optimize) 首次配置引导")
+    print("═"*60)
+    print(f"此配置将保存在 {CONFIG_FILE} 中。")
+    print("按回车键使用括号中的默认值或保留当前值。\n")
+
+    load_config()  # 先加载一次获取默认值提示
+
+    api_key = input(f"请输入 Doubao API Key [{API_KEY if API_KEY else '必填'}]: ").strip()
+    if not api_key:
+        api_key = API_KEY
+    while not api_key:
+        print("API Key 不能为空！")
+        api_key = input("请输入 Doubao API Key: ").strip()
+
+    model = input(f"请输入模型版本 [{API_MODEL}]: ").strip()
+    if not model:
+        model = API_MODEL
+
+    endpoint = input(f"请输入 API Endpoint [{API_ENDPOINT}]: ").strip()
+    if not endpoint:
+        endpoint = API_ENDPOINT
+
+    archive_dir = input(f"请输入默认的报告输出目录 [{DEFAULT_ARCHIVE_DIR}]: ").strip()
+    if not archive_dir:
+        archive_dir = DEFAULT_ARCHIVE_DIR
+
+    save_config(api_key, model, endpoint, archive_dir)
+    load_config()  # 更新全局变量
+    print("\n✅ 配置完成！\n")
+
+def ensure_config():
+    load_config()
+    if not API_KEY:
+        print("[配置] 未检测到 API_KEY，进入配置引导流程...")
+        interactive_setup()
 
 
 # ═══════════════════════════════════════════════════════════
@@ -789,13 +865,6 @@ def analyze_video(video_path: str, title: str = "未命名视频") -> dict:
     Step 3: 第二次 API 调用 — 逐场景细拆
     Step 4: 合并结果
     """
-    # ── Step 0: 检查 API 配置 ──
-    if not API_KEY:
-        print("[分析] 错误: 未设置 DOUBAO_API_KEY 环境变量。")
-        print("[分析] 请执行: export DOUBAO_API_KEY='你的API密钥'")
-        print("[分析] 或在项目根目录创建 .env 文件并 source 加载。")
-        sys.exit(1)
-
     # ── Step 1: 准备 base64 ──
     print(f"\n{'='*60}")
     print(f"[分析] 开始分析: {title}")
@@ -983,13 +1052,15 @@ def main():
   compress  仅压缩视频
   analyze   仅分析视频（需要已压缩的视频）
   report    仅生成报告（需要分析 JSON + 视频）
+  config    使用交互式向导配置 API Key 和默认输出路径
 
 示例:
-  python3 video_analyzer.py run "https://www.bilibili.com/video/BV..." --title "测试" --archive-dir ./outputs/reports
+  python3 video_analyzer.py config
+  python3 video_analyzer.py run "https://www.bilibili.com/video/BV..." --title "测试"
+  python3 video_analyzer.py run "/path/to/video.mp4" --archive-dir ./custom/dir
   python3 video_analyzer.py download "https://www.youtube.com/watch?v=..." --output video.mp4
-  python3 video_analyzer.py compress video.mp4 --output compressed.mp4
   python3 video_analyzer.py analyze compressed.mp4 --title "标题"
-  python3 video_analyzer.py report analysis.json --video compressed.mp4 --archive-dir ./outputs/reports
+  python3 video_analyzer.py report analysis.json --video compressed.mp4
         """
     )
 
@@ -999,7 +1070,7 @@ def main():
     run_parser = subparsers.add_parser("run", help="完整流水线")
     run_parser.add_argument("source", help="视频 URL 或本地路径")
     run_parser.add_argument("--title", "-t", help="视频标题")
-    run_parser.add_argument("--archive-dir", "-a", help="报告归档目录")
+    run_parser.add_argument("--archive-dir", "-a", default=None, help="报告归档目录（留空则使用本地配置中的默认值）")
 
     # ── download ──
     dl_parser = subparsers.add_parser("download", help="仅下载视频")
@@ -1022,7 +1093,10 @@ def main():
     rpt_parser = subparsers.add_parser("report", help="仅生成报告")
     rpt_parser.add_argument("analysis_json", help="分析 JSON 文件路径")
     rpt_parser.add_argument("--video", "-v", required=True, help="视频文件路径")
-    rpt_parser.add_argument("--archive-dir", "-a", default=None, help="报告归档目录")
+    rpt_parser.add_argument("--archive-dir", "-a", default=None, help="报告归档目录（留空则使用本地配置中的默认值）")
+
+    # ── config ──
+    subparsers.add_parser("config", help="交互式配置向导（设置 API Key 和输出目录）")
 
     args = parser.parse_args()
 
@@ -1030,8 +1104,12 @@ def main():
         parser.print_help()
         sys.exit(0)
 
-    if args.command == "run":
-        run_pipeline(args.source, args.title, args.archive_dir)
+    if args.command == "config":
+        interactive_setup()
+
+    elif args.command == "run":
+        ensure_config()
+        run_pipeline(args.source, args.title, args.archive_dir or DEFAULT_ARCHIVE_DIR)
 
     elif args.command == "download":
         path = download_video(args.url, args.output)
@@ -1042,6 +1120,7 @@ def main():
         print(f"压缩完成: {path}")
 
     elif args.command == "analyze":
+        ensure_config()
         analysis = analyze_video(args.video, args.title)
         output_path = args.output or f"analysis_{int(time.time())}.json"
         with open(output_path, "w", encoding="utf-8") as f:
@@ -1049,9 +1128,10 @@ def main():
         print(f"分析结果已保存: {output_path}")
 
     elif args.command == "report":
+        ensure_config()
         with open(args.analysis_json, "r", encoding="utf-8") as f:
             analysis = json.load(f)
-        report_path = generate_report(analysis, args.video, args.archive_dir)
+        report_path = generate_report(analysis, args.video, args.archive_dir or DEFAULT_ARCHIVE_DIR)
         if report_path:
             print(f"报告已生成: {report_path}")
 
