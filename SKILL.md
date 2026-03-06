@@ -120,3 +120,16 @@ python3 ~/.claude/skills/video-optimize/scripts/video_analyzer.py run \
 - `python3`（标准库即可，无需 pip 安装）
 - `ffmpeg` / `ffprobe`（`brew install ffmpeg`）
 - `yt-dlp`（`brew install yt-dlp`，仅 B站/YouTube 需要）
+
+## 环境变量配置
+
+API 密钥通过环境变量读取，**不要硬编码在代码中**。执行分析前确保已设置：
+
+```bash
+export DOUBAO_API_KEY="你的API密钥"
+# 以下为可选，有默认值：
+# export DOUBAO_MODEL="doubao-seed-2-0-pro-260215"
+# export DOUBAO_API_ENDPOINT="https://ark.cn-beijing.volces.com/api/v3/responses"
+```
+
+如果用户未设置 `DOUBAO_API_KEY`，脚本会报错并提示设置方法。

@@ -27,9 +27,10 @@ from datetime import datetime
 from pathlib import Path
 
 # ─────────────────── API Configuration ───────────────────
-API_ENDPOINT = "https://ark.cn-beijing.volces.com/api/v3/responses"
-API_MODEL = "doubao-seed-2-0-pro-260215"
-API_KEY = ""
+# 从环境变量读取，可通过 export DOUBAO_API_KEY 设置
+API_ENDPOINT = os.environ.get("DOUBAO_API_ENDPOINT", "https://ark.cn-beijing.volces.com/api/v3/responses")
+API_MODEL = os.environ.get("DOUBAO_MODEL", "doubao-seed-2-0-pro-260215")
+API_KEY = os.environ.get("DOUBAO_API_KEY", "")
 
 # ─────────────────── Constants ───────────────────
 TARGET_SIZE_MB = 35          # 压缩目标（base64 后 ≈47MB < 50MB API 限制）
@@ -788,6 +789,13 @@ def analyze_video(video_path: str, title: str = "未命名视频") -> dict:
     Step 3: 第二次 API 调用 — 逐场景细拆
     Step 4: 合并结果
     """
+    # ── Step 0: 检查 API 配置 ──
+    if not API_KEY:
+        print("[分析] 错误: 未设置 DOUBAO_API_KEY 环境变量。")
+        print("[分析] 请执行: export DOUBAO_API_KEY='你的API密钥'")
+        print("[分析] 或在项目根目录创建 .env 文件并 source 加载。")
+        sys.exit(1)
+
     # ── Step 1: 准备 base64 ──
     print(f"\n{'='*60}")
     print(f"[分析] 开始分析: {title}")
