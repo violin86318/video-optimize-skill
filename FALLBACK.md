@@ -183,6 +183,6 @@ curl -L -o /tmp/douyin_video.mp4 \
 python3 ~/.claude/skills/video-optimize/scripts/video_analyzer.py run \
   "/tmp/downloaded_video.mp4" \
   --title "视频标题" \
-  --archive-dir ./outputs/reports
+  --archive-dir /Users/wanglingwei/Movies/violinvault/SynologyDrive/Clipping/outputs/reports
 ```
 3. 如果浏览器方案也失败，提示用户手动下载视频并提供本地文件路径

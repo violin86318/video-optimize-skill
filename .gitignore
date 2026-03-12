@@ -18,3 +18,4 @@ venv.bak/
 # IntelliJ Idea
 .idea/
 *.iml
+outputs/

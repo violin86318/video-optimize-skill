@@ -4,11 +4,11 @@ video_analyzer.py — 爆款视频拆解与优化核心引擎
 功能：下载视频 → ffmpeg 压缩 → 豆包大模型原生视频理解 → 8维度爆款拆解 + 5大进阶模块 → 逐场景细拆 → 生成 HTML 报告
 
 Usage:
-    python3 video_analyzer.py run "<URL或本地路径>" --title "标题" --archive-dir ./outputs/reports
+    python3 video_analyzer.py run "<URL或本地路径>" --title "标题" --archive-dir /Users/wanglingwei/Movies/violinvault/SynologyDrive/Clipping/outputs/reports
     python3 video_analyzer.py download "<URL>" --output video.mp4
     python3 video_analyzer.py compress "<视频路径>" --output compressed.mp4
     python3 video_analyzer.py analyze "<视频路径>" --title "标题"
-    python3 video_analyzer.py report "<analysis.json路径>" --video "<视频路径>" --archive-dir ./outputs/reports
+    python3 video_analyzer.py report "<analysis.json路径>" --video "<视频路径>" --archive-dir /Users/wanglingwei/Movies/violinvault/SynologyDrive/Clipping/outputs/reports
 """
 
 import argparse
@@ -453,6 +453,7 @@ def call_doubao_api(video_data_url: str, prompt: str) -> str:
     调用豆包大模型 API（原生视频理解）
     返回模型的文本响应
     """
+    # 豆包 API 格式
     payload = {
         "model": API_MODEL,
         "input": [{
@@ -509,14 +510,25 @@ def call_doubao_api(video_data_url: str, prompt: str) -> str:
 
 def parse_api_response(response_text: str) -> str:
     """
-    解析豆包 API 的响应，提取模型输出文本。
-    兼容多种返回格式。
+    解析 API 响应，提取模型输出文本。
+    兼容 Gemini 和豆包等多种返回格式。
     """
     try:
         resp = json.loads(response_text)
     except json.JSONDecodeError:
         # 如果整个响应不是 JSON，直接返回
         return response_text
+
+    # 格式0: Gemini API — candidates[0].content.parts[0].text
+    if "candidates" in resp:
+        candidates = resp.get("candidates", [])
+        if candidates and isinstance(candidates, list):
+            content = candidates[0].get("content", {})
+            parts = content.get("parts", [])
+            if parts and isinstance(parts, list):
+                text = parts[0].get("text", "")
+                if text:
+                    return text
 
     # 格式1: responses API — output 为列表
     if "output" in resp:
@@ -1055,12 +1067,14 @@ def main():
   config    使用交互式向导配置 API Key 和默认输出路径
 
 示例:
+<<<<<<< HEAD
   python3 video_analyzer.py config
   python3 video_analyzer.py run "https://www.bilibili.com/video/BV..." --title "测试"
   python3 video_analyzer.py run "/path/to/video.mp4" --archive-dir ./custom/dir
+  python3 video_analyzer.py run "https://www.bilibili.com/video/BV..." --title "测试" --archive-dir /Users/wanglingwei/Movies/violinvault/SynologyDrive/Clipping/outputs/reports
   python3 video_analyzer.py download "https://www.youtube.com/watch?v=..." --output video.mp4
   python3 video_analyzer.py analyze compressed.mp4 --title "标题"
-  python3 video_analyzer.py report analysis.json --video compressed.mp4
+  python3 video_analyzer.py report analysis.json --video compressed.mp4 --archive-dir /Users/wanglingwei/Movies/violinvault/SynologyDrive/Clipping/outputs/reports
         """
     )
 
